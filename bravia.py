@@ -1,13 +1,10 @@
 # Sony Bravia RC API
 # By Antonio Parraga Navarro https://github.com/aparraga/braviarc
 
-# ### Updated by Stef-Hermans for Domoticz - Python plugin ###
+# ### Original bravia.py for Domoticz by G3rard https://github.com/gerard33/sony-bravia
+# ### Updated by Stef-Hermans ###
     # Changes:
-    # * use Pre-shared key (PSK) instead of connecting with a pin and the use of a cookie
-    # * added function to calculate the playing time in %
-    # * changed requests module to urllib due to Domoticz issue with requests
-    # * changes to print to Domoticz log
-    # * some other small changes
+    # * make MAC optional, replace WOL by ON-command removing need for MAC
 
 try:
     import Domoticz
