@@ -1,9 +1,10 @@
 #
 #       Sony Bravia Plugin
-#       Author: G3rard, 2017
+#       Author: Stef Hermans, 2019
+#       Author original plugin: G3rard
 #
 """
-<plugin key="sony" name="Sony Bravia TV (with Kodi remote)" author="G3rard" version="1.2" wikilink="https://github.com/gerard33/sony-bravia" externallink="https://www.sony.com/electronics/bravia">
+<plugin key="sony" name="Sony Bravia TV (with Kodi remote)" author="stefhermans" version="1.2" wikilink="https://github.com/Stef-Hermans/bravia-domoticz" externallink="https://www.sony.com/electronics/bravia">
     <description>
 Sony Bravia plugin.<br/><br/>
 It will work on Sony Bravia models 2013 and newer.<br/>
