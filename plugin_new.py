@@ -365,72 +365,84 @@ class BasePlugin:
         Status = str(Data["Status"])
         resp = json.loads(strData)
 
-        if(resp.get('result')[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and resp.get('result')[1] is not None):
-            _tv.set_commands(resp.get('result')[1])
+        if ('result' in resp):
+            results = resp.get('result')
+            if('type' in results[0] and results[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and results[1] is not None):
+                _tv.set_commands(results[1])
+                Domoticz.Debug("Commands set")
 
-        """Get information on program that is shown on TV."""
-        if (self._getState == "TVInfo"):
-
-            if resp is not None and not resp.get('error'):
+            if (self._getState == "PowerStatus"):
+                Domoticz.Debug("Status: "+results[0]['status'])
                 self._getState = None
-                playing_content_data = resp.get('result')[0]
-                self.tvPlaying['programTitle'] = playing_content_data.get('programTitle')
-                self.tvPlaying['title'] = playing_content_data.get('title')
-                self.tvPlaying['programMediaType'] = playing_content_data.get('programMediaType')
-                self.tvPlaying['dispNum'] = playing_content_data.get('dispNum')
-                self.tvPlaying['source'] = playing_content_data.get('source')
-                self.tvPlaying['uri'] = playing_content_data.get('uri')
-                self.tvPlaying['durationSec'] = playing_content_data.get('durationSec')
-                self.tvPlaying['startDateTime'] = playing_content_data.get('startDateTime')
 
-                if self.tvPlaying['programTitle'] != None:      # Get information on channel and program title if tuner of TV is used
-                    if self.tvPlaying['startDateTime'] != None: # Show start time and end time of program
-                        self.startTime, self.endTime, self.perc_playingTime = _tv.playing_time(self.tvPlaying['startDateTime'], self.tvPlaying['durationSec'])
-                        self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle'] + ' [' + str(self.startTime) + ' - ' + str(self.endTime) +']'
-                        Domoticz.Debug("Program information: " + str(self.startTime) + "-" + str(self.endTime) + " [" + str(self.perc_playingTime) + "%]")
-                    else:
-                        self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle']
-                    UpdateDevice(1, 1, self.tvPlaying)
-                    self.tvSource = 10
-                    UpdateDevice(3, 1, str(self.tvSource))      # Set source device to TV
-                else:                                           # No program info found
-                    if self.tvPlaying['title'] != '':
-                        self.tvPlaying = self.tvPlaying['title']
-                    else:
-                        self.tvPlaying = "Netflix"              # When TV plays apps, no title information (in this case '') is available, so assume Netflix is playing
-                    if "/MHL" in self.tvPlaying:                # Source contains /MHL, that can be removed
-                        self.tvPlaying = self.tvPlaying.replace("/MHL", "")
-                    UpdateDevice(1, 1, self.tvPlaying)
-                    if "HDMI 1" in self.tvPlaying:
-                        self.tvSource = 20
-                        UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI1
-                    elif "HDMI 2" in self.tvPlaying:
-                        self.tvSource = 30
-                        UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI2
-                    elif "HDMI 3" in self.tvPlaying:
-                        self.tvSource = 40
-                        UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI3
-                    elif "HDMI 4" in self.tvPlaying:
-                        self.tvSource = 50
-                        UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI4
-                    elif "Netflix" in self.tvPlaying:
-                        self.tvSource = 60
-                        UpdateDevice(3, 1, str(self.tvSource))  # Set source device to Netflix
+            """Get information on program that is shown on TV."""
+            if (self._getState == "TVInfo"):
 
-                # Get volume information of TV
-                if Parameters["Mode3"] == "Volume":
-                    self.tvVolume = _tv.get_volume_info()
-                    self.tvVolume = self.tvVolume['volume']
-                    if self.tvVolume != None: UpdateDevice(2, 2, str(self.tvVolume))
+                if resp is not None and not resp.get('error'):
+                    self._getState = None
+                    playing_content_data = results[0]
+                    self.tvPlaying['programTitle'] = playing_content_data.get('programTitle')
+                    self.tvPlaying['title'] = playing_content_data.get('title')
+                    self.tvPlaying['programMediaType'] = playing_content_data.get('programMediaType')
+                    self.tvPlaying['dispNum'] = playing_content_data.get('dispNum')
+                    self.tvPlaying['source'] = playing_content_data.get('source')
+                    self.tvPlaying['uri'] = playing_content_data.get('uri')
+                    self.tvPlaying['durationSec'] = playing_content_data.get('durationSec')
+                    self.tvPlaying['startDateTime'] = playing_content_data.get('startDateTime')
 
-                # Update control and channel devices
-                UpdateDevice(4, 1, str(self.tvControl))
-                UpdateDevice(5, 1, str(self.tvChannel))
+                    if self.tvPlaying['programTitle'] != None:      # Get information on channel and program title if tuner of TV is used
+                        if self.tvPlaying['startDateTime'] != None: # Show start time and end time of program
+                            self.startTime, self.endTime, self.perc_playingTime = _tv.playing_time(self.tvPlaying['startDateTime'], self.tvPlaying['durationSec'])
+                            self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle'] + ' [' + str(self.startTime) + ' - ' + str(self.endTime) +']'
+                            Domoticz.Debug("Program information: " + str(self.startTime) + "-" + str(self.endTime) + " [" + str(self.perc_playingTime) + "%]")
+                        else:
+                            self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle']
+                        UpdateDevice(1, 1, self.tvPlaying)
+                        self.tvSource = 10
+                        UpdateDevice(3, 1, str(self.tvSource))      # Set source device to TV
+                    else:                                           # No program info found
+                        if self.tvPlaying['title'] != '':
+                            self.tvPlaying = self.tvPlaying['title']
+                        else:
+                            self.tvPlaying = "Netflix"              # When TV plays apps, no title information (in this case '') is available, so assume Netflix is playing
+                        if "/MHL" in self.tvPlaying:                # Source contains /MHL, that can be removed
+                            self.tvPlaying = self.tvPlaying.replace("/MHL", "")
+                        UpdateDevice(1, 1, self.tvPlaying)
+                        if "HDMI 1" in self.tvPlaying:
+                            self.tvSource = 20
+                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI1
+                        elif "HDMI 2" in self.tvPlaying:
+                            self.tvSource = 30
+                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI2
+                        elif "HDMI 3" in self.tvPlaying:
+                            self.tvSource = 40
+                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI3
+                        elif "HDMI 4" in self.tvPlaying:
+                            self.tvSource = 50
+                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI4
+                        elif "Netflix" in self.tvPlaying:
+                            self.tvSource = 60
+                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to Netflix
 
-            else:
-                Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk)")
+                    # Get volume information of TV
+                    if Parameters["Mode3"] == "Volume":
+                        self.tvVolume = _tv.get_volume_info()
+                        self.tvVolume = self.tvVolume['volume']
+                        if self.tvVolume != None: UpdateDevice(2, 2, str(self.tvVolume))
 
-            return
+                    # Update control and channel devices
+                    UpdateDevice(4, 1, str(self.tvControl))
+                    UpdateDevice(5, 1, str(self.tvChannel))
+
+                else:
+                    Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk)")
+
+            if (self._getState == "SomeOtherGet"):
+                Domoticz.Debug("Place holder")
+        else:
+            DumpHTTPResponseToLog(Data)
+
+        return
 
 _plugin = BasePlugin()
 
