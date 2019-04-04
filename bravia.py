@@ -17,10 +17,11 @@ import sys
 class BraviaRC:
     httpConn = None
     
-    def __init__(self, connection, host, psk): 
+    def __init__(self, connection, host, psk, mac=None):
         self.httpConn = connection
         self._host = host
         self._psk = psk
+        self._mac = mac
         self._cookies = None
         self._commands = []
     
@@ -53,7 +54,7 @@ class BraviaRC:
                 return false
         else:
             Domoticz.Debug("No connection...")
-            return false
+        return false
         
     def bravia_req_json(self, url, params, log_errors=True):
         """Send request command via HTTP json to Sony Bravia."""
@@ -67,6 +68,7 @@ class BraviaRC:
                 return false
         else:
             Domoticz.Debug("No connection...")
+        return false
     
     def send_command(self, command):
         """Sends a command to the TV."""
@@ -122,9 +124,11 @@ class BraviaRC:
     #    return return_value
 
     def get_playing_info(self):
-        self.bravia_req_json("sony/avContent", self._jdata_build("getPlayingContentInfo", None))
-        return true
-    #    """Get information on program that is shown on TV."""
+        """Get information on program that is shown on TV."""
+        if (self.httpConn.Connected()):
+            if (self.bravia_req_json("sony/avContent", self._jdata_build("getPlayingContentInfo", None))):
+                return true
+        return false
     #    return_value = {}
     #    resp = self.bravia_req_json("sony/avContent", self._jdata_build("getPlayingContentInfo", None))
         
@@ -141,8 +145,11 @@ class BraviaRC:
     #    return return_value
 
     def get_power_status(self):
-        return true
         """Get power status: off, active, standby."""
+        if (self.httpConn.Connected()):
+            if(self.bravia_req_json("sony/system", self._jdata_build("getPowerStatus", None), False)):
+                return true
+        return false
     #    return_value = 'off' # by default the TV is turned off
     #    try:
     #        resp = self.bravia_req_json("sony/system", self._jdata_build("getPowerStatus", None), False)
@@ -154,8 +161,11 @@ class BraviaRC:
     #    return return_value
 
     def _refresh_commands(self):
+        if (self.httpConn.Connected()):
+            if (self.bravia_req_json("sony/system", self._jdata_build("getRemoteControllerInfo", None))):
+                return true
+        return false
         #resp = 
-        self.bravia_req_json("sony/system", self._jdata_build("getRemoteControllerInfo", None))
         """if not resp.get('error'):
             self._commands = resp.get('result')[1]
         else:
