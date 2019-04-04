@@ -38,6 +38,8 @@ Prerequisites:<br/>
 """
 import Domoticz
 import datetime
+import sys
+import json
 
 from bravia import BraviaRC
 
