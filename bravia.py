@@ -56,13 +56,13 @@ class BraviaRC:
                 code+"</IRCCCode></u:X_SendIRCC></s:Body></s:Envelope>")
             try:
                 self.httpConn.Send({"Verb":"POST", "URL":"/sony/IRCC", "Headers": headers, "Data": data})
-                return true
+                return True
             except Exception as exception_instance:
                 Domoticz.Debug("[bravia_send_req_ircc] Exception: " + str(exception_instance))
-                return false
+                return False
         else:
             Domoticz.Debug("No connection...")
-        return false
+        return False
         
     def bravia_req_json(self, url, params, log_errors=True):
         """Send request command via HTTP json to Sony Bravia."""
@@ -70,20 +70,20 @@ class BraviaRC:
             headers = { 'X-Auth-PSK': self._psk, 'Content-Type': 'application/x-www-form-urlencoded', 'Host': self._host } # 'Connection': 'close' 
             try:
                 self.httpConn.Send({"Verb": "POST", "URL": "/"+url, "Headers": headers, "Data": params})
-                return true
+                return True
             except Exception as exception_instance:
                 Domoticz.Debug("[bravia_send_req_ircc] Exception: " + str(exception_instance))
-                return false
+                return False
         else:
             Domoticz.Debug("No connection...")
-        return false
+        return False
     
     def send_command(self, command):
         """Sends a command to the TV."""
         self.send_req_ircc(self.get_command_code(command))
         
     def get_source(self, source):
-        return true
+        return True
     #    """Returns list of Sources."""
     #    original_content_list = []
     #    content_index = 0
@@ -101,7 +101,7 @@ class BraviaRC:
     #    return original_content_list
 
     def load_source_list(self):
-        return true
+        return True
     #    """Load source list from Sony Bravia."""
     #    original_content_list = []
     #    resp = self.bravia_req_json("sony/avContent",
@@ -135,8 +135,8 @@ class BraviaRC:
         """Get information on program that is shown on TV."""
         if (self.httpConn.Connected()):
             if (self.bravia_req_json("sony/avContent", self._jdata_build("getPlayingContentInfo", None))):
-                return true
-        return false
+                return True
+        return False
     #    return_value = {}
     #    resp = self.bravia_req_json("sony/avContent", self._jdata_build("getPlayingContentInfo", None))
         
@@ -156,8 +156,8 @@ class BraviaRC:
         """Get power status: off, active, standby."""
         if (self.httpConn.Connected()):
             if(self.bravia_req_json("sony/system", self._jdata_build("getPowerStatus", None), False)):
-                return true
-        return false
+                return True
+        return False
     #    return_value = 'off' # by default the TV is turned off
     #    try:
     #        resp = self.bravia_req_json("sony/system", self._jdata_build("getPowerStatus", None), False)
@@ -171,8 +171,8 @@ class BraviaRC:
     def _refresh_commands(self):
         if (self.httpConn.Connected()):
             if (self.bravia_req_json("sony/system", self._jdata_build("getRemoteControllerInfo", None))):
-                return true
-        return false
+                return True
+        return False
         #resp = 
         """if not resp.get('error'):
             self._commands = resp.get('result')[1]
@@ -249,7 +249,7 @@ class BraviaRC:
         #if self.get_power_status() != 'active':
         #self.send_req_ircc(self.get_command_code('TvPower'))
         self.send_req_ircc("AAAAAQAAAAEAAAAVAw==")
-        #self.bravia_req_json("sony/system", self._jdata_build("setPowerStatus", {"status": "true"}))
+        #self.bravia_req_json("sony/system", self._jdata_build("setPowerStatus", {"status": "True"}))
             
     def turn_on(self):
         """Normal turn on"""
