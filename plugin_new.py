@@ -4,7 +4,7 @@
 #       Author original plugin: G3rard
 #
 """
-<plugin key="sony" name="Sony Bravia TV (with Kodi remote)" author="stefhermans" version="1.2" wikilink="https://github.com/Stef-Hermans/bravia-domoticz" externallink="https://www.sony.com/electronics/bravia">
+<plugin key="sonyremote" name="Sony TV Remote" author="stefhermans" version="1.2" wikilink="https://github.com/Stef-Hermans/bravia-domoticz" externallink="https://www.sony.com/electronics/bravia">
     <description>
 Sony Bravia plugin.<br/><br/>
 It will work on Sony Bravia models 2013 and newer.<br/>
@@ -138,6 +138,7 @@ class BasePlugin:
     def onConnect(self, Connection, Status, Description):
         if (Status == 0):
             Domoticz.Log("Connected successfully to: "+Connection.Address+":"+Connection.Port)
+            Domoticz.Debug("Connected successfully to: "+Connection.Address+":"+Connection.Port)
             self.playerState = 1
 
         else:
@@ -300,84 +301,37 @@ class BasePlugin:
                 self.nextConnect = 3
                 self.HttpConn.Connect()
 
-        """try:
-            tvStatus = _tv.get_power_status()
-            Domoticz.Debug("Status TV: " + str(tvStatus))
-        except Exception as err:
-            Domoticz.Log("Not connected to TV (" +  str(err) + ")")
-
-        if tvStatus == 'active':                        # TV is on
-            self.powerOn = True
-            try
-                self.GetTVInfo()
-            except Exception as err:
-                Domoticz.Error("No data received from TV, probably it has just been turned off (" +  str(err) + ")")
-        else:                                           # TV is off or standby
-            self.powerOn = False
-            self.SyncDevices()
-        """
         return
 
-    def SyncDevices(self):
-        # TV is off
-        if self.powerOn == False:
-            if self.tvPlaying == "TV starting":         # TV is booting and not yet responding to get_power_status
-                UpdateDevice(1, 1, self.tvPlaying)
-                #UpdateDevice(3, 1, self.tvSource)
-            else:                                       # TV is off so set devices to off
-                self.ClearDevices()
-        # TV is on
-        else:
-            if self.tvPlaying == "Off":                 # TV is set to off in Domoticz, but self.powerOn is still true
-                self.ClearDevices()
-            else:                                       # TV is on so set devices to on
-                if not self.tvPlaying:
-                    Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk) - SyncDevices")
-                else:
-                    UpdateDevice(1, 1, self.tvPlaying)
-                    UpdateDevice(3, 1, str(self.tvSource))
-                if Parameters["Mode3"] == "Volume": UpdateDevice(2, 2, str(self.tvVolume))
-                UpdateDevice(4, 1, str(self.tvControl))
-                UpdateDevice(5, 1, str(self.tvChannel))
-
-        return
-
-    def ClearDevices(self):
-        self.tvPlaying = "Off"
-        UpdateDevice(1, 0, self.tvPlaying)          #Status
-        if Parameters["Mode3"] == "Volume": UpdateDevice(2, 0, str(self.tvVolume))  #Volume
-        self.tvSource = 0
-        self.tvControl = 0
-        self.tvChannel = 0
-        UpdateDevice(3, 0, str(self.tvSource))      #Source
-        UpdateDevice(4, 0, str(self.tvControl))     #Control
-        UpdateDevice(5, 0, str(self.tvChannel))     #Channel
-
-        return
-
-    def GetTVInfo(self):
-        self._getState = "TVInfo"
-        _tv.get_playing_info()
-
-    def onMessage(self, Connection, Data)
+    def onMessage(self, Connection, Data):
         DumpHTTPResponseToLog(Data)
         strData = Data["Data"].decode("utf-8", "ignore")
         Status = str(Data["Status"])
         resp = json.loads(strData)
-
+        
+        Domoticz.Debug("onMessage event fired")
+    
         if ('result' in resp):
             results = resp.get('result')
-            if('type' in results[0] and results[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and results[1] is not None):
+            if ('type' in results[0] and results[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and results[1] is not None):
                 _tv.set_commands(results[1])
                 Domoticz.Debug("Commands set")
-
-            if (self._getState == "PowerStatus"):
-                Domoticz.Debug("Status: "+results[0]['status'])
-                self._getState = None
-
-            """Get information on program that is shown on TV."""
+                
+            if ('status' in results[0]):
+                Domoticz.Debug("Status message received")
+                if( self.outstandingPings >= 0):
+                    self.outstandingPings = self.outstandingPings - 1
+                tvStatus = results[0]['status']
+                Domoticz.Debug("Status: "+tvStatus)
+                if tvStatus == 'active':                        # TV is on
+                    self.powerOn = True
+                    self.GetTVInfo()
+                else:                                           # TV is off or standby
+                    self.powerOn = False
+                
+                self.SyncDevices()
+                    
             if (self._getState == "TVInfo"):
-
                 if resp is not None and not resp.get('error'):
                     self._getState = None
                     playing_content_data = results[0]
@@ -437,10 +391,46 @@ class BasePlugin:
                 else:
                     Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk)")
 
-            if (self._getState == "SomeOtherGet"):
-                Domoticz.Debug("Place holder")
+        return True
+
+    def SyncDevices(self):
+        # TV is off
+        if self.powerOn == False:
+            if self.tvPlaying == "TV starting":         # TV is booting and not yet responding to get_power_status
+                UpdateDevice(1, 1, self.tvPlaying)
+                #UpdateDevice(3, 1, self.tvSource)
+            else:                                       # TV is off so set devices to off
+                self.ClearDevices()
+        # TV is on
         else:
-            DumpHTTPResponseToLog(Data)
+            if self.tvPlaying == "Off":                 # TV is set to off in Domoticz, but self.powerOn is still true
+                self.ClearDevices()
+            else:                                       # TV is on so set devices to on
+                if not self.tvPlaying:
+                    Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk) - SyncDevices")
+                else:
+                    UpdateDevice(1, 1, self.tvPlaying)
+                    UpdateDevice(3, 1, str(self.tvSource))
+                if Parameters["Mode3"] == "Volume": UpdateDevice(2, 2, str(self.tvVolume))
+                UpdateDevice(4, 1, str(self.tvControl))
+                UpdateDevice(5, 1, str(self.tvChannel))
+
+        return
+        
+    def GetTVInfo(self):
+        self._getState = "TVInfo"
+        _tv.get_playing_info()
+
+    def ClearDevices(self):
+        self.tvPlaying = "Off"
+        UpdateDevice(1, 0, self.tvPlaying)          #Status
+        if Parameters["Mode3"] == "Volume": UpdateDevice(2, 0, str(self.tvVolume))  #Volume
+        self.tvSource = 0
+        self.tvControl = 0
+        self.tvChannel = 0
+        UpdateDevice(3, 0, str(self.tvSource))      #Source
+        UpdateDevice(4, 0, str(self.tvControl))     #Control
+        UpdateDevice(5, 0, str(self.tvChannel))     #Channel
 
         return
 
