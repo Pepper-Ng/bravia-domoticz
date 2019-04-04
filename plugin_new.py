@@ -1,7 +1,7 @@
-#       
+#
 #       Sony Bravia Plugin
 #       Author: G3rard, 2017
-#       
+#
 """
 <plugin key="sony" name="Sony Bravia TV (with Kodi remote)" author="G3rard" version="1.2" wikilink="https://github.com/gerard33/sony-bravia" externallink="https://www.sony.com/electronics/bravia">
     <description>
@@ -41,6 +41,9 @@ import datetime
 from bravia import BraviaRC
 
 class BasePlugin:
+    HttpConn = None
+    nextConnect = 3
+    outstandingPings = 0
     powerOn = False
     tvState = 0
     tvVolume = 0
@@ -56,33 +59,38 @@ class BasePlugin:
     perc_playingTime = 0
     _tv = None
     _getState = None
-    
+
     # Executed once at reboot/update, can create up to 255 devices
     def onStart(self):
         global _tv
-        
+
+        Domoticz.Debugging(1)
+
         if Parameters["Mode6"] == "Debug":
-            Domoticz.Debugging(1)
             DumpConfigToLog()
-        
-        _tv = BraviaRC(Parameters["Address"], Parameters["Mode1"], Parameters["Mode2"]) #IP, PSK, MAC
-        
-        self.SourceOptions3 =   {   "LevelActions"  : "||||||", 
+
+        self.HttpConn = Domoticz.Connection(Name="HttpConn", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port="80")
+        self.HttpConn.Connect()
+
+        _tv = BraviaRC(self.HttpConn, Parameters["Address"], Parameters["Mode1"], Parameters["Mode2"]) #IP, PSK, MAC
+        _tv.printconf()
+
+        self.SourceOptions3 =   {   "LevelActions"  : "||||||",
                                     "LevelNames"    : "Off|TV|HDMI1|HDMI2|HDMI3|HDMI4|Netflix",
                                     "LevelOffHidden": "true",
                                     "SelectorStyle" : "0"
                                 }
-        self.SourceOptions4 =   {   "LevelActions"  : "|||||", 
+        self.SourceOptions4 =   {   "LevelActions"  : "|||||",
                                     "LevelNames"    : "Off|Play|Stop|Pause|TV Pause|Exit",
                                     "LevelOffHidden": "true",
                                     "SelectorStyle" : "0"
                                 }
-        self.SourceOptions5 =   {   "LevelActions"  : "||||||||||", 
+        self.SourceOptions5 =   {   "LevelActions"  : "||||||||||",
                                     "LevelNames"    : "Off|CH1|CH2|CH3|CH4|CH5|CH6|CH7|CH8|CH9|--Choose a channel--",
                                     "LevelOffHidden": "true",
                                     "SelectorStyle" : "1"
                                 }
-                                    
+
         if len(Devices) == 0:
             Domoticz.Device(Name="Status", Unit=1, Type=17, Image=2, Switchtype=17, Used=1).Create()
             if Parameters["Mode3"] == "Volume": Domoticz.Device(Name="Volume", Unit=2, Type=244, Subtype=73, Switchtype=7, Image=8, Used=1).Create()
@@ -114,7 +122,7 @@ class BasePlugin:
             if 3 in Devices: self.tvSource = Devices[3].sValue
             if 4 in Devices: self.tvControl = Devices[4].sValue
             if 5 in Devices: self.tvChannel = Devices[5].sValue
-        
+
         # Set update interval, values below 10 seconds are not allowed due to timeout of 5 seconds in bravia.py script
         updateInterval = int(Parameters["Mode5"])
         if updateInterval < 30:
@@ -125,7 +133,35 @@ class BasePlugin:
             Domoticz.Heartbeat(30)
 
         return #--> return True
-    
+
+    def onConnect(self, Connection, Status, Description):
+        if (Status == 0):
+            Domoticz.Log("Connected successfully to: "+Connection.Address+":"+Connection.Port)
+            self.playerState = 1
+
+        else:
+            Domoticz.Debug("Failed to connect ("+str(Status)+") to: "+Connection.Address+":"+Connection.Port+" with error: "+Description)
+            # Turn devices off in Domoticz
+            for Key in Devices:
+                UpdateDevice(Key, 0, Devices[Key].sValue)
+        return True
+
+    def onDisconnect(self, Connection):
+        Domoticz.Log("Device has disconnected")
+        return
+
+    def onStop(self):
+        Domoticz.Log("onStop called")
+        return True
+
+    def TurnOn(self):
+
+        return
+
+    def TurnOff(self):
+
+        return
+
     # Executed each time we click on device through Domoticz GUI
     def onCommand(self, Unit, Command, Level, Hue):
         Domoticz.Log("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
@@ -134,7 +170,7 @@ class BasePlugin:
         action, sep, params = Command.partition(' ')
         action = action.capitalize()
         params = params.capitalize()
-       
+
         if self.powerOn == False:
             if Unit == 1:     # TV power switch
                 if action == "On":
@@ -185,7 +221,7 @@ class BasePlugin:
                 elif Command == "PlayPause": _tv.send_req_ircc("AAAAAgAAABoAAABnAw==")       # TV pause
                 elif Command == "FastForward": _tv.send_req_ircc("AAAAAgAAAJcAAAAcAw==")     # Forward
                 elif Command == "BigStepForward": _tv.send_req_ircc("AAAAAgAAAJcAAAAaAw==")  # Play
-                    
+
             if Unit == 2:     # TV volume
                 if action == 'Set':
                     self.tvVolume = str(Level)
@@ -196,7 +232,7 @@ class BasePlugin:
                 elif action == "On":
                     _tv.mute_volume()
                     UpdateDevice(2, 1, str(self.tvVolume))
-                    
+
             if Unit == 3:   # TV source
                 if Command == 'Set Level':
                     if Level == 10:
@@ -219,7 +255,7 @@ class BasePlugin:
                         self.tvPlaying = "Netflix"
                     self.tvSource = Level
                     self.SyncDevices()
-                        
+
             if Unit == 4:   # TV control
                 if Command == 'Set Level':
                     if Level == 10: _tv.send_req_ircc("AAAAAgAAAJcAAAAaAw==") #Play
@@ -229,7 +265,7 @@ class BasePlugin:
                     if Level == 50: _tv.send_req_ircc("AAAAAQAAAAEAAABjAw==") #Exit
                     self.tvControl = Level
                     self.SyncDevices()
-            
+
             if Unit == 5:   # TV channels
                 if Command == 'Set Level':
                     if Level == 10: _tv.send_req_ircc("AAAAAQAAAAEAAAAAAw==") #1
@@ -244,11 +280,25 @@ class BasePlugin:
                     # Level 100 = --Choose a channel--
                     self.tvChannel = Level
                     self.SyncDevices()
-        
+
         return
 
     # Execution depend of Domoticz.Heartbeat(x) x in seconds
     def onHeartbeat(self):
+
+        if (self.HttpConn.Connected()):
+            if (self.outstandingPings > 6):
+                self.HttpConn.Disconnect()
+                self.nextConnect = 0
+            else:
+                _tv.get_power_status()
+        else:
+            self.outstandingPings = 0
+            self.nextConnect = self.nextConnect - 1
+            if (self.nextConnect <= 0):
+                self.nextConnect = 3
+                self.HttpConn.Connect()
+
         """try:
             tvStatus = _tv.get_power_status()
             Domoticz.Debug("Status TV: " + str(tvStatus))
@@ -290,7 +340,7 @@ class BasePlugin:
                 UpdateDevice(5, 1, str(self.tvChannel))
 
         return
-    
+
     def ClearDevices(self):
         self.tvPlaying = "Off"
         UpdateDevice(1, 0, self.tvPlaying)          #Status
@@ -301,25 +351,25 @@ class BasePlugin:
         UpdateDevice(3, 0, str(self.tvSource))      #Source
         UpdateDevice(4, 0, str(self.tvControl))     #Control
         UpdateDevice(5, 0, str(self.tvChannel))     #Channel
-        
+
         return
-    
+
     def GetTVInfo(self):
         self._getState = "TVInfo"
         _tv.get_playing_info()
-    
+
     def onMessage(self, Connection, Data)
         DumpHTTPResponseToLog(Data)
         strData = Data["Data"].decode("utf-8", "ignore")
         Status = str(Data["Status"])
         resp = json.loads(strData)
-        
+
         if(resp.get('result')[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and resp.get('result')[1] is not None):
             _tv.set_commands(resp.get('result')[1])
-        
+
         """Get information on program that is shown on TV."""
         if (self._getState == "TVInfo"):
- 
+
             if resp is not None and not resp.get('error'):
                 self._getState = None
                 playing_content_data = resp.get('result')[0]
@@ -331,7 +381,7 @@ class BasePlugin:
                 self.tvPlaying['uri'] = playing_content_data.get('uri')
                 self.tvPlaying['durationSec'] = playing_content_data.get('durationSec')
                 self.tvPlaying['startDateTime'] = playing_content_data.get('startDateTime')
-                
+
                 if self.tvPlaying['programTitle'] != None:      # Get information on channel and program title if tuner of TV is used
                     if self.tvPlaying['startDateTime'] != None: # Show start time and end time of program
                         self.startTime, self.endTime, self.perc_playingTime = _tv.playing_time(self.tvPlaying['startDateTime'], self.tvPlaying['durationSec'])
@@ -365,22 +415,22 @@ class BasePlugin:
                     elif "Netflix" in self.tvPlaying:
                         self.tvSource = 60
                         UpdateDevice(3, 1, str(self.tvSource))  # Set source device to Netflix
-                
+
                 # Get volume information of TV
                 if Parameters["Mode3"] == "Volume":
                     self.tvVolume = _tv.get_volume_info()
                     self.tvVolume = self.tvVolume['volume']
                     if self.tvVolume != None: UpdateDevice(2, 2, str(self.tvVolume))
-                        
+
                 # Update control and channel devices
                 UpdateDevice(4, 1, str(self.tvControl))
                 UpdateDevice(5, 1, str(self.tvChannel))
-            
+
             else:
                 Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk)")
 
             return
-    
+
 _plugin = BasePlugin()
 
 def onStart():
@@ -394,7 +444,7 @@ def onHeartbeat():
 
 # Update Device into database
 def UpdateDevice(Unit, nValue, sValue, AlwaysUpdate=False):
-    # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
+    # Make sure that the Domoticz device still exists (they can be deleted) before updating it
     if Unit in Devices:
         if ((Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue) or (AlwaysUpdate == True)):
             Devices[Unit].Update(nValue, str(sValue))
