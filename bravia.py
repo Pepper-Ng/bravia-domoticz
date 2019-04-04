@@ -16,7 +16,7 @@ import sys
 
 class BraviaRC:
     httpConn = None
-    
+
     def __init__(self, connection, host, psk, mac=None):
         self.httpConn = connection
         self._host = host
@@ -24,7 +24,15 @@ class BraviaRC:
         self._mac = mac
         self._cookies = None
         self._commands = []
-    
+
+    def _jdata_build(self, method, params):
+        if params:
+            ret = json.dumps({"method": method, "params": [params], "id": 1, "version": "1.0"})
+        else:
+            ret = json.dumps({"method": method, "params": [], "id": 1, "version": "1.0"})
+        print(ret)
+        return ret
+
     def printconf(self):
         Domoticz.Debug("Host: "+str(self._host)+" PSK: "+self._psk);
         if (self.httpConn):
