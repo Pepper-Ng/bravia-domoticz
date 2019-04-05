@@ -37,7 +37,7 @@ class BraviaRC:
         Domoticz.Debug("Host: "+str(self._host)+" PSK: "+self._psk);
         if (self.httpConn):
             if (self.httpConn.Connected()):
-                Domoticz.Log("Connected successfully to: "+self.httpConn.Name+" "+self.httpConn.Address+":"+self.httpConn.Port)
+                Domoticz.Log("Connected, IP"+self.httpConn.Address+":"+self.httpConn.Port)
             else:
                 Domoticz.Debug("No connection!")
         else:
@@ -47,7 +47,7 @@ class BraviaRC:
         """Send an IRCC command via HTTP to Sony Bravia."""
         if (self.httpConn.Connected()):
             headers = { 'X-Auth-PSK': self._psk, 'Soapaction': '"urn:schemas-sony-com:service:IRCC:1#X_SendIRCC"', \
-                        'Host': self._host, 'Content-Type': 'application/x-www-form-urlencoded' } # 'Connection': 'close'
+                        'Host': self._host, 'Connection': 'keep-alive', 'Content-Type': 'application/x-www-form-urlencoded' }
             data = ("<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org" +
                 "/soap/envelope/\" " +
                 "s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body>" +
@@ -67,7 +67,7 @@ class BraviaRC:
     def bravia_req_json(self, url, params, log_errors=True):
         """Send request command via HTTP json to Sony Bravia."""
         if (self.httpConn.Connected()):
-            headers = { 'X-Auth-PSK': self._psk, 'Content-Type': 'application/x-www-form-urlencoded', 'Host': self._host } # 'Connection': 'close' 
+            headers = { 'X-Auth-PSK': self._psk, 'Host': self._host, 'Connection': 'keep-alive', 'Content-Type': 'application/x-www-form-urlencoded' }
             try:
                 self.httpConn.Send({"Verb": "POST", "URL": "/"+url, "Headers": headers, "Data": params})
                 return True

@@ -49,7 +49,6 @@ class BasePlugin:
     nextConnect = 3
     outstandingPings = 0
     powerOn = False
-    tvState = 0
     tvVolume = 0
     tvSource = 0
     tvControl = 0
@@ -67,7 +66,8 @@ class BasePlugin:
     def onStart(self):
         global _tv
 
-        Domoticz.Debugging(1)#if Parameters["Mode6"] != "Debug":
+        if Parameters["Mode6"] == "Debug":
+            Domoticz.Debugging(1)
 
         # TODO : Combine Source and Control buttons (if possible on 2nd row)
         # TODO : Add easy volume control
@@ -88,37 +88,33 @@ class BasePlugin:
                                     "SelectorStyle" : "1"
                                 }
 
-        if len(Devices) == 0:
-            Domoticz.Device(Name="Status", Unit=1, Type=17, Image=2, Switchtype=17, Used=1).Create()
-            if Parameters["Mode3"] == "Volume": Domoticz.Device(Name="Volume", Unit=2, Type=244, Subtype=73, Switchtype=7, Image=8, Used=1).Create()
-            Domoticz.Device(Name="Source", Unit=3, TypeName="Selector Switch", Switchtype=18, Image=2, Options=self.SourceOptions3, Used=1).Create()
-            Domoticz.Device(Name="Control", Unit=4, TypeName="Selector Switch", Switchtype=18, Image=2, Options=self.SourceOptions4, Used=1).Create()
-            Domoticz.Device(Name="Channel", Unit=5, TypeName="Selector Switch", Switchtype=18, Image=2, Options=self.SourceOptions5, Used=1).Create()
-            Domoticz.Log("Devices created")
-        elif Parameters["Mode3"] == "Volume" and 2 not in Devices:
+        if Parameters["Mode3"] == "Volume" and 2 not in Devices:
             Domoticz.Device(Name="Volume", Unit=2, Type=244, Subtype=73, Switchtype=7, Image=8, Used=1).Create()
             Domoticz.Log("Volume device created")
-        elif Parameters["Mode3"] != "Volume" and 2 in Devices:
+        if Parameters["Mode3"] != "Volume" and 2 in Devices:
             Devices[2].Delete()
             Domoticz.Log("Volume device deleted")
-        elif 1 not in Devices:
-            Domoticz.Device(Name="Status", Unit=1, Type=17, Image=2, Switchtype=17, Used=1).Create()
-            Domoticz.Log("TV device created")
-        elif 3 not in Devices:
-            Domoticz.Device(Name="Source", Unit=3, TypeName="Selector Switch", Switchtype=18, Image=2, Options=self.SourceOptions3, Used=1).Create()
+        # TODO : For some reason the first device entry in Devices is fucked and will weirdly toggle states
+        #        This device itself, now sitting in Utility tab, is obsolete but prevents useful devices from being bugged
+        if 1 not in Devices:
+            Domoticz.Device(Name="Info", Unit=1, Type=243, Subtype=19, Used=1).Create()
+            Domoticz.Log("TV Status device created")
+        if 3 not in Devices:
+            Domoticz.Device(Name="Source", Unit=3, Type=244, Subtype=62, Switchtype=18, Image=2, Options=self.SourceOptions3, Used=1).Create()
             Domoticz.Log("Source device created")
-        elif 4 not in Devices:
-            Domoticz.Device(Name="Control", Unit=4, TypeName="Selector Switch", Switchtype=18, Image=2, Options=self.SourceOptions4, Used=1).Create()
+        if 4 not in Devices:
+            Domoticz.Device(Name="Control", Unit=4, Type=244, Subtype=62, Switchtype=18, Image=2, Options=self.SourceOptions4, Used=1).Create()
             Domoticz.Log("Control device created")
-        elif 5 not in Devices:
-            Domoticz.Device(Name="Channel", Unit=5, TypeName="Selector Switch", Switchtype=18, Image=2, Options=self.SourceOptions5, Used=1).Create()
+        if 5 not in Devices:
+            Domoticz.Device(Name="Channel", Unit=5, Type=244, Subtype=62, Switchtype=18, Image=2, Options=self.SourceOptions5, Used=1).Create()
             Domoticz.Log("Channel device created")
-        else:
-            if 1 in Devices: self.tvState = Devices[1].nValue    #--> of sValue
-            if 2 in Devices: self.tvVolume = Devices[2].nValue   #--> of sValue
-            if 3 in Devices: self.tvSource = Devices[3].sValue
-            if 4 in Devices: self.tvControl = Devices[4].sValue
-            if 5 in Devices: self.tvChannel = Devices[5].sValue
+        if 7 not in Devices:
+            Domoticz.Device(Name="Status", Unit=7, Type=244, Subtype=73, Switchtype=17, Image=2, Used=1).Create()
+        
+        if 2 in Devices: self.tvVolume = Devices[2].nValue   #--> of sValue
+        if 3 in Devices: self.tvSource = Devices[3].sValue
+        if 4 in Devices: self.tvControl = Devices[4].sValue
+        if 5 in Devices: self.tvChannel = Devices[5].sValue
 
         self.HttpConn = Domoticz.Connection(Name="HttpConn", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port="80")
         self.HttpConn.Connect()
@@ -137,9 +133,9 @@ class BasePlugin:
     def onConnect(self, Connection, Status, Description):
         if (Status == 0):
             Domoticz.Log("Connected successfully to: "+Connection.Address+":"+Connection.Port)
-            _tv.printconf();
+            _tv.printconf()
         else:
-            Domoticz.Debug("Failed to connect ("+str(Status)+") to: "+Connection.Address+":"+Connection.Port+" with error: "+Description)
+            Domoticz.Log("Failed to connect ("+str(Status)+") to: "+Connection.Address+":"+Connection.Port+" with error: "+Description)
             for Key in Devices:
                 UpdateDevice(Key, 0, Devices[Key].sValue) # Turn devices off in Domoticz
         return True
@@ -219,8 +215,8 @@ class BasePlugin:
 
             if Unit == 3:   # TV source
                 if Command == 'Set Level':
-                    if Level == 10:
-                        _tv.send_req_ircc("AAAAAQAAAAEAAAAAAw==") #TV Num1
+                    if Level == 10: 
+                        _tv.send_req_ircc("AAAAAQAAAAEAAAAkAw==") #TV
                         self.GetTVInfo()
                     if Level == 20:
                         _tv.send_req_ircc("AAAAAgAAABoAAABaAw==") #HDMI1
@@ -268,105 +264,125 @@ class BasePlugin:
         return
 
     def onMessage(self, Connection, Data):
-        Domoticz.Debug("onMessage event fired")
+        Domoticz.Log("onMessage event fired")
         
-        #TODO : Process headers, check if json before decoding
-        Headers = Data["Headers"]
-            #Content-Type = 'application/json'
-            #Content-Type = 'text/xml; charset="utf-8"'
-            
         strData = Data["Data"].decode("utf-8", "ignore")
         Status = str(Data["Status"])
-        resp = json.loads(strData)        
-    
-        if ('result' in resp):
-            results = resp.get('result')
-            if ('type' in results[0] and results[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and results[1] is not None):
-                _tv.set_commands(results[1])
-                Domoticz.Debug("Commands set")
-                
-            elif ('status' in results[0]):
-                Domoticz.Debug("Status message received")
-                if( self.outstandingPings >= 0):
-                    self.outstandingPings = self.outstandingPings - 1
-                tvStatus = results[0]['status']
-                Domoticz.Debug("Status TV: "+tvStatus)
-                if tvStatus == 'active':                        # TV is on
-                    self.powerOn = True
-                    Domoticz.Debug("Calling GetTVInfo...")
-                    self.GetTVInfo()
-                else:                                           # TV is off or standby
-                    self.powerOn = False
-                
-                # TODO : Check SyncDevices functionality
-                #self.SyncDevices()
+        Domoticz.Log("HTTP Status: "+Status+", Content Type: " + Data['Headers']['Content-Type'])
+        
+        #if (Data['Headers']['Connection'] == "close"): 
+            # Reconnect : True
+        
+        if (Data['Headers']['Content-Type'] == "application/json"):
+            resp = json.loads(strData)        
+        
+            if ('result' in resp):
+                results = resp.get('result')
+                if ('type' in results[0] and results[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and results[1] is not None):
+                    _tv.set_commands(results[1])
+                    Domoticz.Log("Commands set")
                     
-            elif (self._getState == "TVInfo"):
-                Domoticz.Debug("TVInfo received")
-                # TODO : Channel information is not properly updated
-                # TODO : Source information is not updated
-                if resp is not None and not resp.get('error'):
-                    self._getState = None
-                    playing_content_data = results[0]
-                    self.tvPlaying = {}
-                    self.tvPlaying['programTitle'] = playing_content_data.get('programTitle')
-                    self.tvPlaying['title'] = playing_content_data.get('title')
-                    self.tvPlaying['programMediaType'] = playing_content_data.get('programMediaType')
-                    self.tvPlaying['dispNum'] = playing_content_data.get('dispNum')
-                    self.tvPlaying['source'] = playing_content_data.get('source')
-                    self.tvPlaying['uri'] = playing_content_data.get('uri')
-                    self.tvPlaying['durationSec'] = playing_content_data.get('durationSec')
-                    self.tvPlaying['startDateTime'] = playing_content_data.get('startDateTime')
+                elif ('status' in results[0]):
+                    if( self.outstandingPings >= 0):
+                        self.outstandingPings = self.outstandingPings - 1
+                    tvStatus = results[0]['status']
+                    Domoticz.Log("Status TV: "+tvStatus)
+                    if tvStatus == 'active':                        # TV is on
+                        self.powerOn = True
+                        self.GetTVInfo()
+                    else:                                           # TV is off or standby
+                        self.powerOn = False
+                    
+                    self.SyncDevices()
 
-                    if self.tvPlaying['programTitle'] != None:      # Get information on channel and program title if tuner of TV is used
-                        if self.tvPlaying['startDateTime'] != None: # Show start time and end time of program
-                            self.startTime, self.endTime, self.perc_playingTime = _tv.playing_time(self.tvPlaying['startDateTime'], self.tvPlaying['durationSec'])
-                            self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle'] + ' [' + str(self.startTime) + ' - ' + str(self.endTime) +']'
-                            Domoticz.Debug(self.tvPlaying)
-                            Domoticz.Debug("Program information: " + str(self.startTime) + "-" + str(self.endTime) + " [" + str(self.perc_playingTime) + "%]")
-                        else:
-                            self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle']
-                        UpdateDevice(1, 1, self.tvPlaying)
-                        self.tvSource = 10
-                        UpdateDevice(3, 1, str(self.tvSource))      # Set source device to TV
-                    else:                                           # No program info found
-                        if self.tvPlaying['title'] != '':
-                            self.tvPlaying = self.tvPlaying['title']
-                        else:
-                            self.tvPlaying = "Netflix"              # When TV plays apps, no title information (in this case '') is available, so assume Netflix is playing
-                        if "/MHL" in self.tvPlaying:                # Source contains /MHL, that can be removed
-                            self.tvPlaying = self.tvPlaying.replace("/MHL", "")
-                        UpdateDevice(1, 1, self.tvPlaying)
-                        if "HDMI 1" in self.tvPlaying:
-                            self.tvSource = 20
-                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI1
-                        elif "HDMI 2" in self.tvPlaying:
-                            self.tvSource = 30
-                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI2
-                        elif "HDMI 3" in self.tvPlaying:
-                            self.tvSource = 40
-                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI3
-                        elif "HDMI 4" in self.tvPlaying:
-                            self.tvSource = 50
-                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI4
-                        elif "Netflix" in self.tvPlaying:
-                            self.tvSource = 60
-                            UpdateDevice(3, 1, str(self.tvSource))  # Set source device to Netflix
+                elif (self._getState == "TVInfo"):
+                    # TODO : Source information is not updated
+                    if resp is not None and not resp.get('error'):
+                        self._getState = None
+                        playing_content_data = results[0]
+                        self.tvPlaying = {}
+                        self.tvPlaying['programTitle'] = playing_content_data.get('programTitle')
+                        self.tvPlaying['title'] = playing_content_data.get('title')
+                        self.tvPlaying['programMediaType'] = playing_content_data.get('programMediaType')
+                        self.tvPlaying['dispNum'] = playing_content_data.get('dispNum')
+                        self.tvPlaying['source'] = playing_content_data.get('source')
+                        self.tvPlaying['uri'] = playing_content_data.get('uri')
+                        self.tvPlaying['durationSec'] = playing_content_data.get('durationSec')
+                        self.tvPlaying['startDateTime'] = playing_content_data.get('startDateTime')
 
-                    # Get volume information of TV
-                    if Parameters["Mode3"] == "Volume":
-                        _tv.get_volume_info()
-                        #self.tvVolume = self.tvVolume['volume']
-                        #if self.tvVolume != None: UpdateDevice(2, 2, str(self.tvVolume))
+                        if self.tvPlaying['programTitle'] != None:      # Get information on channel and program title if tuner of TV is used
+                            if self.tvPlaying['startDateTime'] != None: # Show start time and end time of program
+                                self.startTime, self.endTime, self.perc_playingTime = _tv.playing_time(self.tvPlaying['startDateTime'], self.tvPlaying['durationSec'])
+                                if (int(self.tvPlaying['dispNum']) < 10):
+                                    self.tvChannel = 10*int(self.tvPlaying['dispNum'])
+                                #str(int(self.tvPlaying['dispNum'])) + ': ' + 
+                                self.tvPlaying = self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle'] + ' [' + str(self.startTime) + ' - ' + str(self.endTime) +']'
+                                Domoticz.Log(self.tvPlaying)
+                                UpdateDevice(1, 1, self.tvPlaying)
+                                UpdateDevice(7, 1, self.tvPlaying)
+                                    
+                                Domoticz.Log("Program information: " + str(self.startTime) + "-" + str(self.endTime) + " [" + str(self.perc_playingTime) + "%]")
+                            else:
+                                self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle']
+                            UpdateDevice(7, 1, self.tvPlaying)
+                            UpdateDevice(5, 1, str(self.tvChannel))
+                            self.tvSource = 10
+                            UpdateDevice(3, 1, str(self.tvSource))      # Set source device to TV
+                        else:                                           # No program info found
+                            if self.tvPlaying['title'] != '':
+                                self.tvPlaying = self.tvPlaying['title']
+                            else:
+                                self.tvPlaying = "Netflix"              # When TV plays apps, no title information (in this case '') is available, so assume Netflix is playing
+                            if "/MHL" in self.tvPlaying:                # Source contains /MHL, that can be removed
+                                self.tvPlaying = self.tvPlaying.replace("/MHL", "")
+                            #UpdateDevice(1, 1, self.tvPlaying)
+                            if "HDMI 1" in self.tvPlaying:
+                                self.tvSource = 20
+                                UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI1
+                            elif "HDMI 2" in self.tvPlaying:
+                                self.tvSource = 30
+                                UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI2
+                            elif "HDMI 3" in self.tvPlaying:
+                                self.tvSource = 40
+                                UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI3
+                            elif "HDMI 4" in self.tvPlaying:
+                                self.tvSource = 50
+                                UpdateDevice(3, 1, str(self.tvSource))  # Set source device to HDMI4
+                            elif "Netflix" in self.tvPlaying:
+                                self.tvSource = 60
+                                UpdateDevice(3, 1, str(self.tvSource))  # Set source device to Netflix
 
-                    # Update control and channel devices
-                    UpdateDevice(4, 1, str(self.tvControl))
-                    UpdateDevice(5, 1, str(self.tvChannel))
+                        # Get volume information of TV
+                        if Parameters["Mode3"] == "Volume":
+                            _tv.get_volume_info()
 
+                        # Update control and channel devices
+                        UpdateDevice(4, 1, str(self.tvControl))
+                        UpdateDevice(5, 1, str(self.tvChannel))
+
+                    else:
+                        Domoticz.Log("No information from TV received (TV was paused and then continued playing from disk)")
+                elif (isinstance(results[0],list)):
+                    for result in results[0]:
+                        if ('target' in result):
+                            if (result['target'] == 'headphone'):
+                                self.tvVolume = result['volume']
+                                if self.tvVolume != None: UpdateDevice(2, 2, str(self.tvVolume))
                 else:
-                    Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk)")
+                    Domoticz.Log("Warning: onMessage event but unknown message type!")
+                    DumpHTTPResponseToLog(Data)
+            elif ('error' in resp):
+                Domoticz.Log("Remote device returned error: ")
+                error = resp.get('error')
+                Domoticz.Log("Error code "+str(error[0])+": "+str(error[1]))            
             else:
+                Domoticz.Log("Warning: onMessage event but no known content in data!")
                 DumpHTTPResponseToLog(Data)
+        elif (Data['Headers']['Content-Type'] == 'text/xml; charset="utf-8"'):
+            #DumpHTTPResponseToLog(Data)
+            # TODO : Parse XML to verify IRCC command received correctly
+            Domoticz.Log("Remote command received")
+            
         return True
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
@@ -375,6 +391,7 @@ class BasePlugin:
     def onHeartbeat(self):
         if (self.HttpConn.Connected()):
             if (self.outstandingPings > 6):
+                Domoticz.Log("Outstanding pings > 6, device will disconnect...")
                 self.HttpConn.Disconnect()
                 self.nextConnect = 0
             else:
@@ -382,30 +399,9 @@ class BasePlugin:
                 self.outstandingPings = self.outstandingPings + 1
         else:
             self.outstandingPings = 0
-            self.nextConnect = self.nextConnect - 1
-            if (self.nextConnect <= 0):
-                self.nextConnect = 3
-                self.HttpConn.Connect()
+            self.HttpConn.Connect()
 
         return
-        
-        """if (self.HttpConn.Connected()):
-            if(self.outstandingPings == 0):
-                #_rc.send_req_ircc("AAAAAQAAAAEAAAADAw==")
-                #self._getState = "PowerStatus";
-                _rc.get_power_status()
-                self.outstandingPings = self.outstandingPings + 1
-            if (self.outstandingPings > 6):
-                self.HttpConn.Disconnect()
-                self.nextConnect = 0
-        else:
-            # if not connected try and reconnected every 3 heartbeats
-            self.outstandingPings = 0
-            self.nextConnect = self.nextConnect - 1
-            if (self.nextConnect <= 0):
-                self.nextConnect = 3
-                self.HttpConn.Connect()
-        return True"""
         
     def onStop(self):
         Domoticz.Log("onStop called")
@@ -422,7 +418,9 @@ class BasePlugin:
         self._getState = "TVInfo"
         _tv.get_playing_info()
 
-    def SyncDevices(self):
+    """def SyncDevices(self):
+        # TODO : Implement SyncDevices functionality
+
         # Make sure that the Domoticz devices are in sync (by definition, the device is connected)
         #if (1 in Devices):
         #    UpdateDevice(1, self.playerState, self.mediaDescrption)
@@ -430,10 +428,45 @@ class BasePlugin:
         #    UpdateDevice(2, self.mediaLevel, str(self.mediaLevel))
 
         return
+    """
+    def SyncDevices(self):
+        # TV is off
+        if self.powerOn == False:
+            if self.tvPlaying == "TV starting":         # TV is booting and not yet responding to get_power_status
+                UpdateDevice(7, 1, self.tvPlaying)
+                UpdateDevice(3, 1, self.tvSource)
+            else:                                       # TV is off so set devices to off
+                self.tvPlaying = "Off"
+                self.ClearDevices()
+        # TV is on
+        else:
+            if self.tvPlaying == "Off":                 # TV is set to off in Domoticz, but self.powerOn is still true
+                self.ClearDevices()
+            else:                                       # TV is on so set devices to on
+                if not self.tvPlaying:
+                    Domoticz.Log("No information from TV received (TV was paused and then continued playing from disk) - SyncDevices")
+                else:
+                    UpdateDevice(7, 1, self.tvPlaying)
+                    UpdateDevice(3, 1, str(self.tvSource))
+                if Parameters["Mode3"] == "Volume": 
+                    UpdateDevice(2, 2, str(self.tvVolume))
+                
+                UpdateDevice(4, 1, str(self.tvControl))
+                UpdateDevice(5, 1, str(self.tvChannel))
 
+        return
+    
     def ClearDevices(self):
-        # Stop everything and make sure things are synced
-        self.SyncDevices()
+        self.tvPlaying = "Off"
+        UpdateDevice(1, 0, self.tvPlaying)          #Status
+        if Parameters["Mode3"] == "Volume": UpdateDevice(2, 0, str(self.tvVolume))  #Volume
+        self.tvSource = 0
+        self.tvControl = 0
+        self.tvChannel = 0
+        UpdateDevice(3, 0, str(self.tvSource))      #Source
+        UpdateDevice(4, 0, str(self.tvControl))     #Control
+        UpdateDevice(5, 0, str(self.tvChannel))     #Channel
+        
         return
 
 global _plugin
@@ -494,28 +527,24 @@ def DumpConfigToLog():
     return
  
 def UpdateDevice(Unit, nValue, sValue):
+    Domoticz.Log("--- UPDATE DEVICE "+str(Unit)+" "+str(nValue)+" "+str(sValue))
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
     if (Unit in Devices):
-        if (Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue):
-            Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
-            Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
-    return
-
-# Synchronise images to match parameter in hardware page
-def UpdateImage(Unit):
-    if (Unit in Devices) and (Parameters["Mode1"] in Images):
-        Domoticz.Debug("Device Image update: '" + Parameters["Mode1"] + "', Currently "+str(Devices[Unit].Image)+", should be "+str( Images[Parameters["Mode1"]].ID))
-        if (Devices[Unit].Image != Images[Parameters["Mode1"]].ID):
-            Devices[Unit].Update(nValue=Devices[Unit].nValue, sValue=str(Devices[Unit].sValue), Image=Images[Parameters["Mode1"]].ID)
+        Domoticz.Log("### "+str(Unit)+" found")
+        #if (Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue):
+        Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
+        Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
+    else:
+        Domoticz.Log("### Warning: "+str(Unit)+" not found in devices")
     return
 
 def DumpHTTPResponseToLog(httpDict):
     if isinstance(httpDict, dict):
-        Domoticz.Debug("HTTP Details ("+str(len(httpDict))+"):")
+        Domoticz.Log("HTTP Details ("+str(len(httpDict))+"):")
         for x in httpDict:
             if isinstance(httpDict[x], dict):
-                Domoticz.Debug("--->'"+x+" ("+str(len(httpDict[x]))+"):")
+                Domoticz.Log("--->'"+x+" ("+str(len(httpDict[x]))+"):")
                 for y in httpDict[x]:
-                    Domoticz.Debug("------->'" + y + "':'" + str(httpDict[x][y]) + "'")
+                    Domoticz.Log("------->'" + y + "':'" + str(httpDict[x][y]) + "'")
             else:
-                Domoticz.Debug("--->'" + x + "':'" + str(httpDict[x]) + "'")
+                Domoticz.Log("--->'" + x + "':'" + str(httpDict[x]) + "'")
