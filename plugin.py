@@ -152,7 +152,7 @@ class BasePlugin:
         params = params.capitalize()
 
         if self.powerOn == False:
-            if Unit == 1:     # TV power switch
+            if Unit == 7:     # TV power switch
                 if action == "On":
                     # Start TV when WOL is not available, only works on Android
                     if Parameters["Mode2"] == "Android":
@@ -172,7 +172,7 @@ class BasePlugin:
                         except Exception as err:
                             Domoticz.Log("Error when starting TV using WOL (" +  str(err) + ")")
         else:
-            if Unit == 1:     # TV power switch
+            if Unit == 7:     # TV power switch
                 if action == "Off":
                     _tv.turn_off()
                     self.tvPlaying = "Off"
