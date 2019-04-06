@@ -315,19 +315,18 @@ class BasePlugin:
                                 self.startTime, self.endTime, self.perc_playingTime = _tv.playing_time(self.tvPlaying['startDateTime'], self.tvPlaying['durationSec'])
                                 if (int(self.tvPlaying['dispNum']) < 10):
                                     self.tvChannel = 10*int(self.tvPlaying['dispNum'])
+
                                 #str(int(self.tvPlaying['dispNum'])) + ': ' + 
-                                self.tvPlaying = self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle'] + ' [' + str(self.startTime) + ' - ' + str(self.endTime) +']'
-                                Domoticz.Log(self.tvPlaying)
-                                UpdateDevice(1, 1, self.tvPlaying)
-                                UpdateDevice(7, 1, self.tvPlaying)
-                                    
+                                self.tvPlaying = self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle'] + ' [' + str(self.startTime) + ' - ' + str(self.endTime) +']'  
                                 Domoticz.Log("Program information: " + str(self.startTime) + "-" + str(self.endTime) + " [" + str(self.perc_playingTime) + "%]")
                             else:
                                 self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle']
-                            UpdateDevice(7, 1, self.tvPlaying)
-                            UpdateDevice(5, 1, str(self.tvChannel))
+
                             self.tvSource = 10
                             UpdateDevice(3, 1, str(self.tvSource))      # Set source device to TV
+                            UpdateDevice(5, 1, str(self.tvChannel))
+                            UpdateDevice(7, 1, self.tvPlaying)
+
                         else:                                           # No program info found
                             if self.tvPlaying['title'] != '':
                                 self.tvPlaying = self.tvPlaying['title']
@@ -458,6 +457,7 @@ class BasePlugin:
     
     def ClearDevices(self):
         self.tvPlaying = "Off"
+        UpdateDevice(7, 1, self.tvPlaying)
         UpdateDevice(1, 0, self.tvPlaying)          #Status
         if Parameters["Mode3"] == "Volume": UpdateDevice(2, 0, str(self.tvVolume))  #Volume
         self.tvSource = 0
