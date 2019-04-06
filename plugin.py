@@ -457,7 +457,7 @@ class BasePlugin:
     
     def ClearDevices(self):
         self.tvPlaying = "Off"
-        UpdateDevice(7, 1, self.tvPlaying)
+        UpdateDevice(7, 0, self.tvPlaying)
         UpdateDevice(1, 0, self.tvPlaying)          #Status
         if Parameters["Mode3"] == "Volume": UpdateDevice(2, 0, str(self.tvVolume))  #Volume
         self.tvSource = 0
