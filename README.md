@@ -5,7 +5,9 @@ A Domoticz plugin to control Bravia TV
 
 ### Remote control
 To make the remote controller working, domoticz.js has to be edited since it is hardcoded in there. Unfortunately, domoticz is not set-up to re-use this remote control for other plugins then the ones it was originally intended for (Kodi and Panasonic), but luckily this file can easily be changed to include the functionality.
+
 Open file `~/domoticz/www/js/domoticz.js`
+
 In function `ShowMediaRemote` add `HWType.indexOf('sony')>=0`  to the first if statement.
 
 The complete if-statement should look something like the following:
