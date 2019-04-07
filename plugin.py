@@ -69,9 +69,6 @@ class BasePlugin:
         if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)
 
-        # TODO : Combine Source and Control buttons (if possible on 2nd row)
-        # TODO : Add easy volume control
-        # TODO : Fix remote control popup (like Kodi remote)
         self.SourceOptions3 =   {   "LevelActions"  : "||||||",
                                     "LevelNames"    : "Off|TV|HDMI1|HDMI2|HDMI3|HDMI4|Netflix",
                                     "LevelOffHidden": "true",
@@ -417,17 +414,6 @@ class BasePlugin:
         self._getState = "TVInfo"
         _tv.get_playing_info()
 
-    """def SyncDevices(self):
-        # TODO : Implement SyncDevices functionality
-
-        # Make sure that the Domoticz devices are in sync (by definition, the device is connected)
-        #if (1 in Devices):
-        #    UpdateDevice(1, self.playerState, self.mediaDescrption)
-        #if (2 in Devices) and (Devices[2].nValue != self.mediaLevel):
-        #    UpdateDevice(2, self.mediaLevel, str(self.mediaLevel))
-
-        return
-    """
     def SyncDevices(self):
         # TV is off
         if self.powerOn == False:
