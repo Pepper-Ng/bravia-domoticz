@@ -122,27 +122,27 @@ class BasePlugin:
         updateInterval = int(Parameters["Mode5"])
         if updateInterval > 30: updateInterval = 30
         elif updateInterval < 10: updateInterval = 10
-        Domoticz.Log("Update interval set to " + str(updateInterval) + " (minimum is 10 seconds)")
+        Domoticz.Debug("Update interval set to " + str(updateInterval) + " (minimum is 10 seconds)")
         Domoticz.Heartbeat(updateInterval)
         
         return True
 
     def onConnect(self, Connection, Status, Description):
         if (Status == 0):
-            Domoticz.Log("Connected successfully to: "+Connection.Address+":"+Connection.Port)
+            Domoticz.Debug("Connected successfully to: "+Connection.Address+":"+Connection.Port)
             _tv.printconf()
         else:
-            Domoticz.Log("Failed to connect ("+str(Status)+") to: "+Connection.Address+":"+Connection.Port+" with error: "+Description)
+            Domoticz.Debug("Failed to connect ("+str(Status)+") to: "+Connection.Address+":"+Connection.Port+" with error: "+Description)
             for Key in Devices:
                 UpdateDevice(Key, 0, Devices[Key].sValue) # Turn devices off in Domoticz
         return True
 
     def onDisconnect(self, Connection):
-        Domoticz.Log("Device has disconnected")
+        Domoticz.Debug("Device has disconnected")
         return
 
     def onCommand(self, Unit, Command, Level, Hue):
-        Domoticz.Log("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
+        Domoticz.Debug("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
         Command = Command.strip()
         action, sep, params = Command.partition(' ')
         action = action.capitalize()
@@ -153,13 +153,13 @@ class BasePlugin:
                 if action == "On":
                     # Start TV when WOL is not available, only works on Android
                     if Parameters["Mode2"] == "Android":
-                        Domoticz.Log("No MAC address configured, TV will be started with setPowerStatus command (Android only)")
+                        Domoticz.Debug("No MAC address configured, TV will be started with setPowerStatus command (Android only)")
                         try:
                             _tv.turn_on_command()
                             self.tvPlaying = "TV starting" # Show that the TV is starting, as booting the TV takes some time
                             self.SyncDevices()
                         except Exception as err:
-                            Domoticz.Log("Error when starting TV with set PowerStatus, Android only (" +  str(err) + ")")
+                            Domoticz.Debug("Error when starting TV with set PowerStatus, Android only (" +  str(err) + ")")
                     # Start TV using WOL
                     else:
                         try:
@@ -167,7 +167,7 @@ class BasePlugin:
                             self.tvPlaying = "TV starting" # Show that the TV is starting, as booting the TV takes some time
                             self.SyncDevices()
                         except Exception as err:
-                            Domoticz.Log("Error when starting TV using WOL (" +  str(err) + ")")
+                            Domoticz.Debug("Error when starting TV using WOL (" +  str(err) + ")")
         else:
             if Unit == 7:     # TV power switch
                 if action == "Off":
@@ -260,12 +260,10 @@ class BasePlugin:
 
         return
 
-    def onMessage(self, Connection, Data):
-        Domoticz.Log("onMessage event fired")
-        
+    def onMessage(self, Connection, Data):        
         strData = Data["Data"].decode("utf-8", "ignore")
         Status = str(Data["Status"])
-        Domoticz.Log("HTTP Status: "+Status+", Content Type: " + Data['Headers']['Content-Type'])
+        Domoticz.Debug("HTTP Status: "+Status+", Content Type: " + Data['Headers']['Content-Type'])
         
         #if (Data['Headers']['Connection'] == "close"): 
             # Reconnect : True
@@ -277,13 +275,12 @@ class BasePlugin:
                 results = resp.get('result')
                 if ('type' in results[0] and results[0]['type'] == "IR_REMOTE_BUNDLE_TYPE_AEP_N" and results[1] is not None):
                     _tv.set_commands(results[1])
-                    Domoticz.Log("Commands set")
+                    Domoticz.Debug("Commands set")
                     
                 elif ('status' in results[0]):
                     if( self.outstandingPings >= 0):
                         self.outstandingPings = self.outstandingPings - 1
                     tvStatus = results[0]['status']
-                    Domoticz.Log("Status TV: "+tvStatus)
                     if tvStatus == 'active':                        # TV is on
                         self.powerOn = True
                         self.GetTVInfo()
@@ -315,7 +312,7 @@ class BasePlugin:
 
                                 #str(int(self.tvPlaying['dispNum'])) + ': ' + 
                                 self.tvPlaying = self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle'] + ' [' + str(self.startTime) + ' - ' + str(self.endTime) +']'  
-                                Domoticz.Log("Program information: " + str(self.startTime) + "-" + str(self.endTime) + " [" + str(self.perc_playingTime) + "%]")
+                                Domoticz.Debug("Program information: " + str(self.startTime) + "-" + str(self.endTime) + " [" + str(self.perc_playingTime) + "%]")
                             else:
                                 self.tvPlaying = str(int(self.tvPlaying['dispNum'])) + ': ' + self.tvPlaying['title'] + ' - ' + self.tvPlaying['programTitle']
 
@@ -357,7 +354,7 @@ class BasePlugin:
                         UpdateDevice(5, 1, str(self.tvChannel))
 
                     else:
-                        Domoticz.Log("No information from TV received (TV was paused and then continued playing from disk)")
+                        Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk)")
                 elif (isinstance(results[0],list)):
                     for result in results[0]:
                         if ('target' in result):
@@ -365,19 +362,19 @@ class BasePlugin:
                                 self.tvVolume = result['volume']
                                 if self.tvVolume != None: UpdateDevice(2, 2, str(self.tvVolume))
                 else:
-                    Domoticz.Log("Warning: onMessage event but unknown message type!")
+                    Domoticz.Debug("Warning: onMessage event but unknown message type!")
                     DumpHTTPResponseToLog(Data)
             elif ('error' in resp):
-                Domoticz.Log("Remote device returned error: ")
+                Domoticz.Debug("Remote device returned error: ")
                 error = resp.get('error')
-                Domoticz.Log("Error code "+str(error[0])+": "+str(error[1]))            
+                Domoticz.Debug("Error code "+str(error[0])+": "+str(error[1]))            
             else:
-                Domoticz.Log("Warning: onMessage event but no known content in data!")
+                Domoticz.Debug("Warning: onMessage event but no known content in data!")
                 DumpHTTPResponseToLog(Data)
         elif (Data['Headers']['Content-Type'] == 'text/xml; charset="utf-8"'):
             #DumpHTTPResponseToLog(Data)
             # TODO : Parse XML to verify IRCC command received correctly
-            Domoticz.Log("Remote command received")
+            Domoticz.Debug("Remote command received")
             
         return True
 
@@ -387,7 +384,6 @@ class BasePlugin:
     def onHeartbeat(self):
         if (self.HttpConn.Connected()):
             if (self.outstandingPings > 6):
-                Domoticz.Log("Outstanding pings > 6, device will disconnect...")
                 self.HttpConn.Disconnect()
                 self.nextConnect = 0
             else:
@@ -400,7 +396,7 @@ class BasePlugin:
         return
         
     def onStop(self):
-        Domoticz.Log("onStop called")
+        Domoticz.Debug("onStop called")
         return True
 
     def TurnOn(self):
@@ -429,7 +425,7 @@ class BasePlugin:
                 self.ClearDevices()
             else:                                       # TV is on so set devices to on
                 if not self.tvPlaying:
-                    Domoticz.Log("No information from TV received (TV was paused and then continued playing from disk) - SyncDevices")
+                    Domoticz.Debug("No information from TV received (TV was paused and then continued playing from disk) - SyncDevices")
                 else:
                     UpdateDevice(7, 1, self.tvPlaying)
                     UpdateDevice(3, 1, str(self.tvSource))
@@ -513,24 +509,21 @@ def DumpConfigToLog():
     return
  
 def UpdateDevice(Unit, nValue, sValue):
-    Domoticz.Log("--- UPDATE DEVICE "+str(Unit)+" "+str(nValue)+" "+str(sValue))
     # Make sure that the Domoticz device still exists (they can be deleted) before updating it 
     if (Unit in Devices):
-        Domoticz.Log("### "+str(Unit)+" found")
         #if (Devices[Unit].nValue != nValue) or (Devices[Unit].sValue != sValue):
         Devices[Unit].Update(nValue=nValue, sValue=str(sValue))
-        Domoticz.Log("Update "+str(nValue)+":'"+str(sValue)+"' ("+Devices[Unit].Name+")")
     else:
-        Domoticz.Log("### Warning: "+str(Unit)+" not found in devices")
+        Domoticz.Debug("### Warning: "+str(Unit)+" not found in devices")
     return
 
 def DumpHTTPResponseToLog(httpDict):
     if isinstance(httpDict, dict):
-        Domoticz.Log("HTTP Details ("+str(len(httpDict))+"):")
+        Domoticz.Debug("HTTP Details ("+str(len(httpDict))+"):")
         for x in httpDict:
             if isinstance(httpDict[x], dict):
-                Domoticz.Log("--->'"+x+" ("+str(len(httpDict[x]))+"):")
+                Domoticz.Debug("--->'"+x+" ("+str(len(httpDict[x]))+"):")
                 for y in httpDict[x]:
-                    Domoticz.Log("------->'" + y + "':'" + str(httpDict[x][y]) + "'")
+                    Domoticz.Debug("------->'" + y + "':'" + str(httpDict[x][y]) + "'")
             else:
-                Domoticz.Log("--->'" + x + "':'" + str(httpDict[x]) + "'")
+                Domoticz.Debug("--->'" + x + "':'" + str(httpDict[x]) + "'")
