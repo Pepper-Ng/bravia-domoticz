@@ -27,3 +27,6 @@ To have the buttons on the remote send codes correctly to the plugin, the ajax c
 		});
     }
 Now your remote should function properly! A copy of domoticz.js can be found in the repository, but care should be taken if copying it directly since this file might differ across different domoticz versions.
+
+### Domoticz updates
+Unfortunately, when Domoticz is updated to a new version, the domoticz.js file will be overwritten. To keep the remote functioning, you'd need to make the same changes again as described in the previous section.
