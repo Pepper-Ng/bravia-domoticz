@@ -8,7 +8,7 @@ To make the remote controller working, domoticz.js has to be edited since it is 
 
 Open file `~/domoticz/www/js/domoticz.js`
 
-In function `ShowMediaRemote` add `HWType.indexOf('sony')>=0`  to the first if statement.
+In function `ShowMediaRemote` add `HWType.indexOf('Sony')>=0`  to the first if statement.
 
 The complete if-statement should look something like the following:
 
